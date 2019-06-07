@@ -1,0 +1,76 @@
+version: '3.7'
+
+services:
+  db:
+    container_name: app_db
+    image: mysql:5.7
+    volumes:
+    - ./docker/mysql:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_DATABASE: "${DB_DATABASE}"
+      MYSQL_USER: "${DB_USERNAME}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+    user: ${CURRENT_UID}
+    networks:
+    - appnet
+    ports:
+    - '33060:3306'
+  redis:
+    container_name: app_redis
+    image: redis:3-alpine
+    volumes:
+      - ./docker/redis:/data
+    user: ${CURRENT_UID}
+    networks:
+      - appnet
+  node:
+    container_name: app_node
+    build:
+      context: ./docker/node
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/var/www/html/
+    working_dir: /var/www/html
+    user: ${CURRENT_UID}
+    command: docker/node/npm-watch.sh
+    networks:
+      - appnet
+  app:
+    container_name: app_app
+    depends_on:
+      - db
+      - redis
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/var/www/html/
+      - ./docker/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+    working_dir: /var/www/html
+    user: ${CURRENT_UID}
+    expose:
+      - 9000
+    networks:
+    - appnet
+  nginx:
+    container_name: app_nginx
+    image: nginx:alpine
+    depends_on:
+      - app
+    volumes:
+      - ./:/var/www/html/
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/sites/:/etc/nginx/sites-available
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d
+    working_dir: /var/www/html
+    environment:
+      - VIRTUAL_HOST=app.local
+    networks:
+      - appnet
+    ports:
+      - '8000:80'
+
+networks:
+  appnet:
+    driver: bridge

@@ -1,0 +1,20 @@
+version: '3.7'
+
+services:
+  app_unit:
+    container_name: app_unit
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/var/www/html/
+      - ./docker/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+    working_dir: /var/www/html
+    expose:
+      - 9001
+    networks:
+      - appnet_unit
+
+networks:
+  appnet_unit:
+    driver: bridge
